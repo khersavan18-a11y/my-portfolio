@@ -855,12 +855,13 @@ function CursorGlow({ theme }) {
 export default function App() {
   const [section, setSection] = useState("home");
   const [chemTab, setChemTab] = useState("sop");
-    const [skyTheme, setSkyTheme] = useState(() => getSkyTheme(22));
-  useEffect(() => {
-    const updateSky = () => setSkyTheme(getSkyTheme(getISTHour()));
-    const interval = setInterval(updateSky, 60000);
-    return () => clearInterval(interval);
-  }, []);
+const [skyTheme, setSkyTheme] = useState(() => getSkyTheme(getISTHour()));
+
+useEffect(() => {
+  const updateSky = () => setSkyTheme(getSkyTheme(getISTHour()));
+  const interval = setInterval(updateSky, 60000);
+  return () => clearInterval(interval);
+}, []);
   // 🔒 OWNER MODE - Only you can edit/delete
 const [isOwner, setIsOwner] = useState(() => localStorage.getItem("isOwner") === "true");
 const SECRET_KEY = "savan2025"; // 🔑 Change this to your own secret!
@@ -962,48 +963,101 @@ const logoutOwner = () => {
   };
 
   // Reusable Card Component
-  const Card = ({ item, dataKey, isWebsite }) => (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 20, position: "relative", backdropFilter: "blur(10px)", transition: "all 0.3s", cursor: isWebsite && item.url ? "pointer" : "default" }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.4)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}>
+const Card = ({ item, dataKey, isWebsite }) => (
+  <div style={{ 
+    background: skyTheme.isNight ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.6)", 
+    border: skyTheme.isNight ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(25,118,210,0.2)", 
+    borderRadius: 16, 
+    padding: 20, 
+    position: "relative", 
+    backdropFilter: "blur(10px)", 
+    transition: "all 0.3s", 
+    cursor: isWebsite && item.url ? "pointer" : "default",
+    boxShadow: skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)"
+  }}
+    onMouseEnter={(e) => { 
+      e.currentTarget.style.transform = "translateY(-4px)"; 
+      e.currentTarget.style.borderColor = skyTheme.isNight ? "rgba(99,102,241,0.4)" : "rgba(25,118,210,0.5)"; 
+      e.currentTarget.style.boxShadow = skyTheme.isNight ? "0 12px 32px rgba(99,102,241,0.2)" : "0 12px 32px rgba(25,118,210,0.15)";
+    }}
+    onMouseLeave={(e) => { 
+      e.currentTarget.style.transform = "translateY(0)"; 
+      e.currentTarget.style.borderColor = skyTheme.isNight ? "rgba(255,255,255,0.08)" : "rgba(25,118,210,0.2)"; 
+      e.currentTarget.style.boxShadow = skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)";
+    }}>
     {isOwner && (
-  <button onClick={(e) => { e.stopPropagation(); handleDelete(dataKey, item.id); }} style={{ position: "absolute", top: 12, right: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: 6, cursor: "pointer", color: "#ef4444" }}><Icons.trash size={14} /></button>
-)}
-      <h3 style={{ color: "white", fontSize: 17, fontWeight: 700, marginTop: 0, marginBottom: 8, paddingRight: 36 }}>{item.title}</h3>
-      <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.6, margin: "0 0 12px 0" }}>{item.desc}</p>
-      {item.progress > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginBottom: 4 }}><span>Progress</span><span>{item.progress}%</span></div>
-          <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${item.progress}%`, background: "linear-gradient(90deg, #6366f1, #06b6d4)", borderRadius: 3 }}></div>
-          </div>
+      <button onClick={(e) => { e.stopPropagation(); handleDelete(dataKey, item.id); }} style={{ position: "absolute", top: 12, right: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: 6, cursor: "pointer", color: "#ef4444" }}><Icons.trash size={14} /></button>
+    )}
+    <h3 style={{ 
+      color: skyTheme.isNight ? "white" : "#0f172a", 
+      fontSize: 17, 
+      fontWeight: 700, 
+      marginTop: 0, 
+      marginBottom: 8, 
+      paddingRight: 36 
+    }}>{item.title}</h3>
+    <p style={{ 
+      color: skyTheme.isNight ? "#94a3b8" : "#475569", 
+      fontSize: 14, 
+      lineHeight: 1.6, 
+      margin: "0 0 12px 0" 
+    }}>{item.desc}</p>
+    {item.progress > 0 && (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: skyTheme.isNight ? "#94a3b8" : "#475569", marginBottom: 4 }}><span>Progress</span><span>{item.progress}%</span></div>
+        <div style={{ height: 6, background: skyTheme.isNight ? "rgba(255,255,255,0.05)" : "rgba(25,118,210,0.1)", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${item.progress}%`, background: "linear-gradient(90deg, #6366f1, #06b6d4)", borderRadius: 3 }}></div>
         </div>
-      )}
-      {item.tags && item.tags.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: isWebsite ? 12 : 0 }}>
-          {item.tags.map((t, i) => (
-            <span key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: `${tagColor(t)}22`, color: tagColor(t), border: `1px solid ${tagColor(t)}44`, fontWeight: 600 }}>{t}</span>
-          ))}
-        </div>
-      )}
-      {isWebsite && (item.url || item.github) && (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", padding: "8px 12px", background: "linear-gradient(135deg, #6366f1, #06b6d4)", color: "white", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icons.external size={14} /> Visit</a>}
-          {item.github && <a href={item.github} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", padding: "8px 12px", background: "rgba(255,255,255,0.05)", color: "white", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icons.github size={14} /> Code</a>}
-        </div>
-      )}
-    </div>
-  );
-
-  const sectionTitle = (icon, title, subtitle) => (
-    <div style={{ textAlign: "center", marginBottom: 40 }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 18px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 999, marginBottom: 16 }}>
-        {icon}
-        <span style={{ fontSize: 13, color: "#a5b4fc", fontWeight: 600, letterSpacing: 1 }}>{subtitle}</span>
       </div>
-      <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, margin: 0, background: "linear-gradient(135deg, #fff, #94a3b8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{title}</h2>
+    )}
+    {item.tags && item.tags.length > 0 && (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: isWebsite ? 12 : 0 }}>
+        {item.tags.map((t, i) => (
+          <span key={i} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: `${tagColor(t)}22`, color: tagColor(t), border: `1px solid ${tagColor(t)}44`, fontWeight: 600 }}>{t}</span>
+        ))}
+      </div>
+    )}
+    {isWebsite && (item.url || item.github) && (
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", padding: "8px 12px", background: "linear-gradient(135deg, #6366f1, #06b6d4)", color: "white", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icons.external size={14} /> Visit</a>}
+        {item.github && <a href={item.github} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", padding: "8px 12px", background: skyTheme.isNight ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.7)", color: skyTheme.isNight ? "white" : "#0f172a", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600, border: skyTheme.isNight ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(25,118,210,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icons.github size={14} /> Code</a>}
+      </div>
+    )}
+  </div>
+);
+
+const sectionTitle = (icon, title, subtitle) => (
+  <div style={{ textAlign: "center", marginBottom: 40 }}>
+    <div style={{ 
+      display: "inline-flex", 
+      alignItems: "center", 
+      gap: 10, 
+      padding: "8px 18px", 
+      background: skyTheme.isNight ? "rgba(99,102,241,0.1)" : "rgba(25,118,210,0.1)", 
+      border: skyTheme.isNight ? "1px solid rgba(99,102,241,0.2)" : "1px solid rgba(25,118,210,0.3)", 
+      borderRadius: 999, 
+      marginBottom: 16 
+    }}>
+      {icon}
+      <span style={{ 
+        fontSize: 13, 
+        color: skyTheme.isNight ? "#a5b4fc" : "#1e40af", 
+        fontWeight: 700, 
+        letterSpacing: 1 
+      }}>{subtitle}</span>
     </div>
-  );
+    <h2 style={{ 
+      fontSize: "clamp(28px, 4vw, 42px)", 
+      fontWeight: 800, 
+      margin: 0, 
+      background: skyTheme.isNight 
+        ? "linear-gradient(135deg, #fff, #94a3b8)" 
+        : "linear-gradient(135deg, #0f172a, #334155)", 
+      WebkitBackgroundClip: "text", 
+      WebkitTextFillColor: "transparent" 
+    }}>{title}</h2>
+  </div>
+);
 
   const navItems = [
     { id: "home", label: "Home" },
@@ -1432,54 +1486,105 @@ const logoutOwner = () => {
               { icon: <Icons.flask size={28} color="#8b5cf6" />, title: "Advanced Instrumentation", desc: "ICP-OES, GC, XRF, UV-Vis, Karl Fischer & more" },
               { icon: <Icons.code size={28} color="#ec4899" />, title: "Tech & Automation", desc: "Python, Power BI & AI tools for smarter QC workflows" },
             ].map((c, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 24, backdropFilter: "blur(10px)" }}>
-                <div style={{ marginBottom: 12 }}>{c.icon}</div>
-                <h3 style={{ color: "white", fontSize: 17, fontWeight: 700, margin: "0 0 8px 0" }}>{c.title}</h3>
-                <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{c.desc}</p>
-              </div>
+              <div key={i} style={{ 
+  background: skyTheme.isNight ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.7)", 
+  border: skyTheme.isNight ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(25,118,210,0.2)", 
+  borderRadius: 16, 
+  padding: 24, 
+  backdropFilter: "blur(10px)",
+  boxShadow: skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)",
+  transition: "all 0.3s",
+}}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-4px)";
+    e.currentTarget.style.boxShadow = skyTheme.isNight ? "0 12px 32px rgba(99,102,241,0.2)" : "0 12px 32px rgba(25,118,210,0.15)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)";
+  }}>
+  <div style={{ marginBottom: 12 }}>{c.icon}</div>
+  <h3 style={{ color: skyTheme.isNight ? "white" : "#0f172a", fontSize: 17, fontWeight: 700, margin: "0 0 8px 0" }}>{c.title}</h3>
+  <p style={{ color: skyTheme.isNight ? "#94a3b8" : "#475569", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{c.desc}</p>
+</div>
             ))}
           </div>
 
           {/* Education Timeline */}
-          <h3 style={{ fontSize: 22, marginTop: 60, marginBottom: 24, color: "white", display: "flex", alignItems: "center", gap: 10 }}><Icons.graduation size={22} color="#06b6d4" /> Education</h3>
+          <h3 style={{ 
+             fontSize: 22, 
+             marginTop: 60, 
+             marginBottom: 24, 
+             color: skyTheme.isNight ? "white" : "#0f172a", 
+             display: "flex", 
+             alignItems: "center", 
+             gap: 10 
+             }}><Icons.graduation size={22} color="#0288d1" /> Education</h3>
           <div style={{ display: "grid", gap: 16 }}>
             {EDUCATION.map((e, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 20, display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "center" }}>
-                <div>
-                  <h4 style={{ color: "white", margin: "0 0 6px 0", fontSize: 16 }}>{e.degree}</h4>
-                  <p style={{ color: "#94a3b8", margin: "0 0 4px 0", fontSize: 14 }}>{e.institution} — {e.board}</p>
-                  <p style={{ color: "#64748b", margin: 0, fontSize: 13 }}>{e.year}</p>
-                </div>
-                <div style={{ padding: "6px 14px", background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 999, color: "#06b6d4", fontWeight: 700, fontSize: 14 }}>{e.percentage}</div>
-              </div>
+             <div key={i} style={{ 
+  background: skyTheme.isNight ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.7)", 
+  border: skyTheme.isNight ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(25,118,210,0.2)", 
+  borderRadius: 16, 
+  padding: 20, 
+  display: "grid", 
+  gridTemplateColumns: "1fr auto", 
+  gap: 16, 
+  alignItems: "center",
+  boxShadow: skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)"
+}}>
+        <div>
+         <h4 style={{ color: skyTheme.isNight ? "white" : "#0f172a", margin: "0 0 6px 0", fontSize: 16 }}>{e.degree}</h4>
+         <p style={{ color: skyTheme.isNight ? "#94a3b8" : "#475569", margin: "0 0 4px 0", fontSize: 14 }}>{e.institution} — {e.board}</p>
+         <p style={{ color: skyTheme.isNight ? "#64748b" : "#64748b", margin: 0, fontSize: 13 }}>{e.year}</p>
+         </div>
+         <div style={{ padding: "6px 14px", background: skyTheme.isNight ? "rgba(6,182,212,0.1)" : "rgba(2,136,209,0.15)", border: skyTheme.isNight ? "1px solid rgba(6,182,212,0.2)" : "1px solid rgba(2,136,209,0.3)", borderRadius: 999, color: skyTheme.isNight ? "#06b6d4" : "#0288d1", fontWeight: 700, fontSize: 14 }}>{e.percentage}</div>
+         </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* EXPERIENCE */}
+          {/* EXPERIENCE */}
       <section id="experience" style={{ 
         padding: "80px 24px",
         background: skyTheme.isNight ? "rgba(255,255,255,0.02)" : "linear-gradient(180deg, #B0E0E6 0%, #87CEEB 100%)",
         transition: "background 3s ease",
-        color: skyTheme.textColor,
-         }}>
+      }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {sectionTitle(<Icons.briefcase size={14} color="#a5b4fc" />, "Work Experience", "MY JOURNEY")}
           <div style={{ display: "grid", gap: 20 }}>
             {EXPERIENCE.map((exp, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: exp.current ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 24, backdropFilter: "blur(10px)" }}>
+              <div key={i} style={{ 
+                background: skyTheme.isNight ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.7)", 
+                border: exp.current 
+                  ? "1px solid rgba(16,185,129,0.4)" 
+                  : skyTheme.isNight ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(25,118,210,0.2)", 
+                borderRadius: 16, 
+                padding: 24, 
+                backdropFilter: "blur(10px)",
+                boxShadow: skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)",
+                transition: "all 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = skyTheme.isNight ? "0 12px 32px rgba(99,102,241,0.2)" : "0 12px 32px rgba(25,118,210,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = skyTheme.isNight ? "none" : "0 4px 16px rgba(0,0,0,0.06)";
+              }}>
                 <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
                   <div>
-                    <h3 style={{ color: "white", margin: "0 0 4px 0", fontSize: 18 }}>{exp.role}</h3>
-                    <p style={{ color: "#06b6d4", margin: 0, fontSize: 15, fontWeight: 600 }}>{exp.company}</p>
+                    <h3 style={{ color: skyTheme.isNight ? "white" : "#0f172a", margin: "0 0 4px 0", fontSize: 18 }}>{exp.role}</h3>
+                    <p style={{ color: skyTheme.isNight ? "#06b6d4" : "#0288d1", margin: 0, fontSize: 15, fontWeight: 600 }}>{exp.company}</p>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {exp.current && <span style={{ padding: "4px 10px", background: "rgba(16,185,129,0.15)", color: "#10b981", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>● CURRENT</span>}
-                    <span style={{ padding: "4px 10px", background: "rgba(99,102,241,0.1)", color: "#a5b4fc", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{exp.period}</span>
+                    <span style={{ padding: "4px 10px", background: skyTheme.isNight ? "rgba(99,102,241,0.1)" : "rgba(25,118,210,0.15)", color: skyTheme.isNight ? "#a5b4fc" : "#1e40af", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{exp.period}</span>
                   </div>
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 20, color: "#94a3b8", fontSize: 14, lineHeight: 1.8 }}>
+                <ul style={{ margin: 0, paddingLeft: 20, color: skyTheme.isNight ? "#94a3b8" : "#475569", fontSize: 14, lineHeight: 1.8 }}>
                   {exp.points.map((p, j) => (<li key={j}>{p}</li>))}
                 </ul>
               </div>
@@ -1771,6 +1876,17 @@ const logoutOwner = () => {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  /* Day mode card improvements */
+.day-card {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(25, 118, 210, 0.2) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+.day-card:hover {
+  border-color: rgba(25, 118, 210, 0.5) !important;
+  box-shadow: 0 12px 32px rgba(25, 118, 210, 0.15) !important;
+}
   @keyframes scrollDown {
     0% { transform: translateY(-100%); opacity: 0; }
     50% { opacity: 1; }
