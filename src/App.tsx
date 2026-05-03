@@ -935,30 +935,47 @@ useEffect(() => {
 const [isOwner, setIsOwner] = useState(() => localStorage.getItem("isOwner") === "true");
 const SECRET_KEY = "savan2001"; // 🔑 Change this to your own secret!
 
-// Listen for secret keyboard shortcut: press "O" key 3 times
+
+// Listen for secret activation:
+// 💻 Desktop: press "O" key 3 times quickly
+// 📱 Mobile: tap bottom-right corner 5 times quickly
 useEffect(() => {
   let oCount = 0;
   let timer = null;
+
+  const tryActivateOwner = () => {
+    const key = prompt("🔒 Enter owner key:");
+    if (key === SECRET_KEY) {
+      setIsOwner(true);
+      localStorage.setItem("isOwner", "true");
+      alert("✅ Owner mode activated! You can now edit content.");
+    } else if (key !== null) {
+      alert("❌ Wrong key");
+    }
+  };
+
+  // 💻 Desktop keyboard handler
   const handleKey = (e) => {
     if (e.key === "o" || e.key === "O") {
       oCount++;
       clearTimeout(timer);
       timer = setTimeout(() => { oCount = 0; }, 1000);
       if (oCount === 3) {
-        const key = prompt("🔒 Enter owner key:");
-        if (key === SECRET_KEY) {
-          setIsOwner(true);
-          localStorage.setItem("isOwner", "true");
-          alert("✅ Owner mode activated! You can now edit content.");
-        } else if (key !== null) {
-          alert("❌ Wrong key");
-        }
+        tryActivateOwner();
         oCount = 0;
       }
     }
   };
+
   window.addEventListener("keydown", handleKey);
-  return () => window.removeEventListener("keydown", handleKey);
+
+  // 📱 Expose mobile trigger globally so the hidden button can call it
+  window.__triggerOwnerPrompt = tryActivateOwner;
+
+  return () => {
+    window.removeEventListener("keydown", handleKey);
+    delete window.__triggerOwnerPrompt;
+  };
 }, []);
 
 const logoutOwner = () => {
@@ -1938,7 +1955,39 @@ const sectionTitle = (icon, title, subtitle) => (
           <Icons.arrowUp size={20} />
         </button>
       )}
-
+{/* 🥷 Hidden mobile owner trigger — tap 5 times in bottom-right corner */}
+{!isOwner && (
+  <button
+    onClick={() => {
+      window.__mobileTapCount = (window.__mobileTapCount || 0) + 1;
+      clearTimeout(window.__mobileTapTimer);
+      window.__mobileTapTimer = setTimeout(() => {
+        window.__mobileTapCount = 0;
+      }, 2000);
+      if (window.__mobileTapCount >= 5) {
+        window.__mobileTapCount = 0;
+        if (window.__triggerOwnerPrompt) {
+          window.__triggerOwnerPrompt();
+        }
+      }
+    }}
+    aria-label="hidden"
+    style={{
+      position: "fixed",
+      bottom: 0,
+      right: 0,
+      width: 60,
+      height: 60,
+      background: "transparent",
+      border: "none",
+      cursor: "default",
+      zIndex: 9999,
+      padding: 0,
+      margin: 0,
+      opacity: 0,
+    }}
+  />
+)}
       {/* GLOBAL ANIMATIONS */}
       <style>{`
   @keyframes pulse {
