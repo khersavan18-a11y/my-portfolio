@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://my-portfolio-beta-silk-51.vercel.app/sitemap.xml
