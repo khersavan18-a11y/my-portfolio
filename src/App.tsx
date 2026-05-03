@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo, Suspense, Component } from "react";
+import { subscribeToJournal, saveJournalEntry, deleteJournalEntry } from "./firebase";
 
 /* ============================================
    CUSTOM SVG ICONS (no lucide dependency)
@@ -509,6 +510,22 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [entryText, setEntryText] = useState("");
   const [mood, setMood] = useState("😊");
+  const [isSaving, setIsSaving] = useState(false);
+  const [cloudEntries, setCloudEntries] = useState({});
+
+  // 🔥 SUBSCRIBE TO FIREBASE — auto-syncs across all devices/visitors
+  useEffect(() => {
+    const unsubscribe = subscribeToJournal((firebaseEntries) => {
+      setCloudEntries(firebaseEntries);
+      // Also update parent state so other parts of app stay in sync
+      setEntries(firebaseEntries);
+    });
+    // Cleanup on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Use cloud entries as the source of truth
+  const allEntries = cloudEntries;
 
   const moods = ["😄", "😊", "😐", "😔", "😤", "💪", "🔥", "🎯"];
   const year = currentDate.getFullYear();
@@ -522,46 +539,64 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
   const calculateStreak = () => {
     let streak = 0;
     let d = new Date();
-    while (entries[getDateKey(d)]) {
+    while (allEntries[getDateKey(d)]) {
       streak++;
       d.setDate(d.getDate() - 1);
     }
     return streak;
   };
-  const handleDateClick = (day) => {
-  const date = new Date(year, month, day);
-  const key = getDateKey(date);
-  // 🔒 Visitors can ONLY click dates with existing entries
-  if (!isOwner && !entries[key]) return;
-  setSelectedDate(key);
-  if (entries[key]) {
-    setEntryText(entries[key].text);
-    setMood(entries[key].mood);
-  } else {
-    setEntryText("");
-    setMood("😊");
-  }
-};
 
-  const saveEntry = () => {
-    if (!entryText.trim()) return;
-    const newEntries = { ...entries, [selectedDate]: { text: entryText, mood, savedAt: new Date().toISOString() } };
-    setEntries(newEntries);
-    setSelectedDate(null);
-    setEntryText("");
+  const handleDateClick = (day) => {
+    const date = new Date(year, month, day);
+    const key = getDateKey(date);
+    // 🔒 Visitors can ONLY click dates with existing entries
+    if (!isOwner && !allEntries[key]) return;
+    setSelectedDate(key);
+    if (allEntries[key]) {
+      setEntryText(allEntries[key].text || "");
+      setMood(allEntries[key].mood || "😊");
+    } else {
+      setEntryText("");
+      setMood("😊");
+    }
   };
 
-  const deleteEntry = () => {
-    const newEntries = { ...entries };
-    delete newEntries[selectedDate];
-    setEntries(newEntries);
-    setSelectedDate(null);
-    setEntryText("");
+  // ☁️ SAVE TO FIREBASE (auto-syncs to all devices)
+  const saveEntry = async () => {
+    if (!entryText.trim()) {
+      alert("Please write something before saving!");
+      return;
+    }
+    setIsSaving(true);
+    const result = await saveJournalEntry(selectedDate, mood, entryText);
+    setIsSaving(false);
+    if (result.success) {
+      alert("✅ Saved to cloud! Visible on all your devices.");
+      setSelectedDate(null);
+      setEntryText("");
+    } else {
+      alert("❌ Save failed: " + (result.error || "Check your internet & secret key"));
+    }
+  };
+
+  // 🗑️ DELETE FROM FIREBASE
+  const deleteEntry = async () => {
+    if (!confirm("Delete this entry permanently? This will remove it for all visitors too.")) return;
+    setIsSaving(true);
+    const result = await deleteJournalEntry(selectedDate);
+    setIsSaving(false);
+    if (result.success) {
+      alert("🗑️ Entry deleted.");
+      setSelectedDate(null);
+      setEntryText("");
+    } else {
+      alert("❌ Delete failed: " + (result.error || "Try again"));
+    }
   };
 
   const today = new Date();
   const todayKey = getDateKey(today);
-  const totalEntries = Object.keys(entries).length;
+  const totalEntries = Object.keys(allEntries).length;
   const streak = calculateStreak();
 
   return (
@@ -580,7 +615,7 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
         </div>
         <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.15))", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 16, padding: 20, textAlign: "center" }}>
           <Icons.calendar size={28} color="#8b5cf6" />
-          <div style={{ fontSize: 32, fontWeight: 800, marginTop: 8, color: "#8b5cf6" }}>{Object.keys(entries).filter(k => k.startsWith(`${year}-${String(month+1).padStart(2,"0")}`)).length}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, marginTop: 8, color: "#8b5cf6" }}>{Object.keys(allEntries).filter(k => k.startsWith(`${year}-${String(month+1).padStart(2,"0")}`)).length}</div>
           <div style={{ fontSize: 13, color: "#94a3b8" }}>This Month</div>
         </div>
       </div>
@@ -606,17 +641,18 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
             const date = new Date(year, month, day);
             const key = getDateKey(date);
-            const hasEntry = !!entries[key];
+            const hasEntry = !!allEntries[key];
             const isToday = key === todayKey;
             return (
               <button key={day} onClick={() => handleDateClick(day)} style={{
                 aspectRatio: "1", border: isToday ? "2px solid #06b6d4" : hasEntry ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(255,255,255,0.08)",
                 background: hasEntry ? "linear-gradient(135deg, rgba(99,102,241,0.3), rgba(6,182,212,0.3))" : "rgba(255,255,255,0.02)",
-                color: "white", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: isToday ? 700 : 500, position: "relative",
+                color: "white", borderRadius: 10, cursor: !isOwner && !hasEntry ? "default" : "pointer", fontSize: 14, fontWeight: isToday ? 700 : 500, position: "relative",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
+                opacity: !isOwner && !hasEntry ? 0.4 : 1,
               }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}>
                 {day}
-                {hasEntry && <span style={{ fontSize: 14, marginTop: 2 }}>{entries[key].mood}</span>}
+                {hasEntry && <span style={{ fontSize: 14, marginTop: 2 }}>{allEntries[key].mood}</span>}
               </button>
             );
           })}
@@ -625,7 +661,7 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
 
       {/* Entry Modal */}
       {selectedDate && (
-        <div onClick={() => setSelectedDate(null)} style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", padding: 16 }}>
+        <div onClick={() => !isSaving && setSelectedDate(null)} style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#0f172a", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 500 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h3 style={{ margin: 0, color: "white", fontSize: 20 }}>📝 {selectedDate}</h3>
@@ -633,104 +669,137 @@ function JournalCalendar({ entries, setEntries, isOwner }) {
             </div>
 
             <label style={{ color: "#94a3b8", fontSize: 13, display: "block", marginBottom: 8 }}>
-  {isOwner ? "How was your day?" : "Mood logged for this day"}
-</label>
-<div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-  {isOwner ? (
-    moods.map((m) => (
-      <button 
-        key={m} 
-        onClick={() => setMood(m)} 
-        style={{ 
-          fontSize: 24, 
-          padding: 8, 
-          borderRadius: 10, 
-          cursor: "pointer", 
-          background: mood === m ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.05)", 
-          border: mood === m ? "2px solid #6366f1" : "1px solid rgba(255,255,255,0.1)" 
-        }}
-      >
-        {m}
-      </button>
-    ))
-  ) : (
-    <div style={{
-      padding: "12px 20px",
-      background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.15))",
-      border: "1px solid rgba(99,102,241,0.3)",
-      borderRadius: 10,
-      display: "flex",
-      alignItems: "center",
-      gap: 12
-    }}>
-      <span style={{ fontSize: 32 }}>{mood}</span>
-      <span style={{ fontSize: 13, color: "#94a3b8", fontWeight: 600 }}>
-        Savan's mood for this day
-      </span>
-    </div>
-  )}
-</div>
+              {isOwner ? "How was your day?" : "Mood logged for this day"}
+            </label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+              {isOwner ? (
+                moods.map((m) => (
+                  <button 
+                    key={m} 
+                    onClick={() => setMood(m)} 
+                    style={{ 
+                      fontSize: 24, 
+                      padding: 8, 
+                      borderRadius: 10, 
+                      cursor: "pointer", 
+                      background: mood === m ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.05)", 
+                      border: mood === m ? "2px solid #6366f1" : "1px solid rgba(255,255,255,0.1)" 
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))
+              ) : (
+                <div style={{
+                  padding: "12px 20px",
+                  background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.15))",
+                  border: "1px solid rgba(99,102,241,0.3)",
+                  borderRadius: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12
+                }}>
+                  <span style={{ fontSize: 32 }}>{mood}</span>
+                  <span style={{ fontSize: 13, color: "#94a3b8", fontWeight: 600 }}>
+                    Savan's mood for this day
+                  </span>
+                </div>
+              )}
+            </div>
 
             <label style={{ color: "#94a3b8", fontSize: 13, display: "block", marginBottom: 8 }}>Your journal entry</label>
             {isOwner ? (
-  <textarea 
-    value={entryText} 
-    onChange={(e) => setEntryText(e.target.value)} 
-    placeholder="What did you accomplish today? What did you learn? How do you feel?" 
-    rows={6} 
-    style={{ 
-      width: "100%", 
-      padding: 12, 
-      background: "rgba(255,255,255,0.05)", 
-      border: "1px solid rgba(255,255,255,0.1)", 
-      borderRadius: 10, 
-      color: "white", 
-      fontSize: 14, 
-      fontFamily: "inherit", 
-      resize: "vertical", 
-      boxSizing: "border-box" 
-    }} 
-  />
-) : (
-  <div style={{ 
-    width: "100%", 
-    padding: 24, 
-    background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(6,182,212,0.1))", 
-    border: "1px solid rgba(99,102,241,0.2)", 
-    borderRadius: 10, 
-    textAlign: "center",
-    minHeight: 140,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    boxSizing: "border-box"
-  }}>
-    <div style={{ fontSize: 48 }}>🔒</div>
-    <div style={{ fontSize: 16, color: "white", fontWeight: 700 }}>Private Journal Entry</div>
-    <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, maxWidth: 320 }}>
-      Savan logged this day with mood {entries[selectedDate]?.mood || "😊"} but the personal reflection is private.
-    </div>
-    <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-      💭 Some thoughts are just for the soul
-    </div>
-  </div>
-)}
+              <textarea 
+                value={entryText} 
+                onChange={(e) => setEntryText(e.target.value)} 
+                placeholder="What did you accomplish today? What did you learn? How do you feel?" 
+                rows={6} 
+                disabled={isSaving}
+                style={{ 
+                  width: "100%", 
+                  padding: 12, 
+                  background: "rgba(255,255,255,0.05)", 
+                  border: "1px solid rgba(255,255,255,0.1)", 
+                  borderRadius: 10, 
+                  color: "white", 
+                  fontSize: 14, 
+                  fontFamily: "inherit", 
+                  resize: "vertical", 
+                  boxSizing: "border-box",
+                  opacity: isSaving ? 0.5 : 1,
+                }} 
+              />
+            ) : (
+              <div style={{ 
+                width: "100%", 
+                padding: 24, 
+                background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(6,182,212,0.1))", 
+                border: "1px solid rgba(99,102,241,0.2)", 
+                borderRadius: 10, 
+                textAlign: "center",
+                minHeight: 140,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                boxSizing: "border-box"
+              }}>
+                <div style={{ fontSize: 48 }}>🔒</div>
+                <div style={{ fontSize: 16, color: "white", fontWeight: 700 }}>Private Journal Entry</div>
+                <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, maxWidth: 320 }}>
+                  Savan logged this day with mood {allEntries[selectedDate]?.mood || "😊"} but the personal reflection is private.
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  💭 Some thoughts are just for the soul
+                </div>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-             {isOwner && (
-              <>
-             <button onClick={saveEntry} style={{ flex: 1, padding: "12px 20px", background: "linear-gradient(135deg, #6366f1, #06b6d4)", border: "none", borderRadius: 10, color: "white", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>💾 Save Entry</button>
-              {entries[selectedDate] && (
-             <button onClick={deleteEntry} style={{ padding: "12px 20px", background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#ef4444", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>Delete</button>
-             )}
-             </>
-             )}
-             {!isOwner && (
-             <button onClick={() => setSelectedDate(null)} style={{ flex: 1, padding: "12px 20px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "white", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>Close</button>
-          )}
-           </div>
+              {isOwner && (
+                <>
+                  <button 
+                    onClick={saveEntry} 
+                    disabled={isSaving}
+                    style={{ 
+                      flex: 1, 
+                      padding: "12px 20px", 
+                      background: isSaving ? "rgba(99,102,241,0.5)" : "linear-gradient(135deg, #6366f1, #06b6d4)", 
+                      border: "none", 
+                      borderRadius: 10, 
+                      color: "white", 
+                      fontWeight: 600, 
+                      cursor: isSaving ? "not-allowed" : "pointer", 
+                      fontSize: 14 
+                    }}
+                  >
+                    {isSaving ? "☁️ Saving..." : "💾 Save to Cloud"}
+                  </button>
+                  {allEntries[selectedDate] && (
+                    <button 
+                      onClick={deleteEntry} 
+                      disabled={isSaving}
+                      style={{ 
+                        padding: "12px 20px", 
+                        background: "rgba(239,68,68,0.2)", 
+                        border: "1px solid rgba(239,68,68,0.3)", 
+                        borderRadius: 10, 
+                        color: "#ef4444", 
+                        fontWeight: 600, 
+                        cursor: isSaving ? "not-allowed" : "pointer", 
+                        fontSize: 14 
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </>
+              )}
+              {!isOwner && (
+                <button onClick={() => setSelectedDate(null)} style={{ flex: 1, padding: "12px 20px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "white", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>Close</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -864,7 +933,7 @@ useEffect(() => {
 }, []);
   // 🔒 OWNER MODE - Only you can edit/delete
 const [isOwner, setIsOwner] = useState(() => localStorage.getItem("isOwner") === "true");
-const SECRET_KEY = "savan2025"; // 🔑 Change this to your own secret!
+const SECRET_KEY = "savan2001"; // 🔑 Change this to your own secret!
 
 // Listen for secret keyboard shortcut: press "O" key 3 times
 useEffect(() => {
